@@ -5,7 +5,15 @@ OPENSSL_TARGET="${OPENSSL_TARGET:-linux-x86_64}"
 OPENSSL_VERSION="${OPENSSL_VERSION:-3.5.8}"
 LIBRETLS_VERSION="${LIBRETLS_VERSION:-3.8.1}"
 ZSTD_VERSION="${ZSTD_VERSION:-1.5.7}"
+ECL_VERSION="${ECL_VERSION:-26.5.5}"
+SBCL_VERSION="${SBCL_VERSION:-2.6.0}"
 STATIC_PREFIX="${STATIC_PREFIX:-/opt/static}"
+
+case $(uname -m) in
+    x86_64) ARCH="x86-64" ;;
+    arm64|aarch64) ARCH="arm64";;
+    *) ARCH=$(uname -m) ;;
+esac
 
 export PATH="/opt/rh/devtoolset-10/root/usr/bin:${PATH}"
 export LD_LIBRARY_PATH="/opt/rh/devtoolset-10/root/usr/lib64:/opt/rh/devtoolset-10/root/usr/lib:${LD_LIBRARY_PATH:-}"
@@ -82,6 +90,31 @@ PKG_CONFIG="pkg-config --static" ./configure \
 make -j"$(nproc)"
 make install
 cd /usr/src && rm -rf "libretls-${LIBRETLS_VERSION}" libretls.tar.gz
+
+echo "=== Building ECL ${ECL_VERSION} ==="
+curl -fsSL "https://common-lisp.net/project/ecl/static/files/release/ecl-$ECL_VERSION.tgz" -o ecl.tar.gz
+tar xf ecl.tar.gz
+cd "ecl-${ECL_VERSION}"
+PKG_CONFIG="pkg-config --static" ./configure \
+  --prefix="${STATIC_PREFIX}" \
+  --disable-shared
+make -j"$(nproc)"
+make install
+ln -s "${STATIC_PREFIX}/bin/ecl" "/usr/local/bin/ecl"
+cd /usr/src && rm -rf "ecl-${ECL_VERSION}" ecl.tar.gz
+
+export LD_LIBRARY_PATH="${STATIC_PREFIX}/lib:${STATIC_PREFIX}/lib64"
+
+echo "=== Building SBCL ${SBCL_VERSION} ==="
+SBCL_HOST_DIR="sbcl-1.4.2-${ARCH}-linux"
+curl -fsSL https://prdownloads.sourceforge.net/sbcl/${SBCL_HOST_DIR}-binary.tar.bz2 -o sbcl-host.tar.gz
+SBCL_HOST_DIR="${PWD}/${SBCL_HOST_DIR}"
+tar xf sbcl-host.tar.gz
+git clone --depth 1 --branch sbcl-${SBCL_VERSION} https://github.com/sbcl/sbcl sbcl-${SBCL_VERSION}
+cd "sbcl-${SBCL_VERSION}"
+bash make.sh --xc-host="${SBCL_HOST_DIR}/run-sbcl.sh" --fancy
+bash install.sh
+cd /usr/src && rm -rf sbcl*
 
 echo "--- installed static libs ---"
 ls -la "${STATIC_PREFIX}/lib"
