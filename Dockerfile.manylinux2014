@@ -1,0 +1,83 @@
+# syntax=docker/dockerfile:1
+ARG BASE_IMAGE=quay.io/pypa/manylinux2014_x86_64
+FROM ${BASE_IMAGE}
+ARG OPENSSL_TARGET=linux-x86_64
+
+ARG OPENSSL_VERSION=3.5.8
+ARG LIBRETLS_VERSION=3.8.1
+ARG ZSTD_VERSION=1.5.7
+
+ENV STATIC_PREFIX=/opt/static
+ENV PATH="/opt/rh/devtoolset-10/root/usr/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/rh/devtoolset-10/root/usr/lib64:/opt/rh/devtoolset-10/root/usr/lib:${LD_LIBRARY_PATH}"
+
+RUN yum -y install \
+      perl \
+      perl-IPC-Cmd \
+      perl-Pod-Html \
+      make \
+      pkgconfig \
+      autoconf \
+      automake \
+      libtool \
+      m4 \
+      git \
+      wget \
+      curl \
+      which \
+    && yum clean all
+
+RUN mkdir -p /usr/src ${STATIC_PREFIX}
+WORKDIR /usr/src
+
+RUN curl -fsSL https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz \
+      -o openssl.tar.gz \
+    && tar xf openssl.tar.gz \
+    && cd openssl-${OPENSSL_VERSION} \
+    && ./Configure ${OPENSSL_TARGET} no-shared no-tests \
+         --prefix=${STATIC_PREFIX} \
+         --openssldir=${STATIC_PREFIX}/ssl \
+    && make -j"$(nproc)" \
+    && make install_sw install_ssldirs \
+    && cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl.tar.gz
+
+ENV PKG_CONFIG_PATH=${STATIC_PREFIX}/lib/pkgconfig:${STATIC_PREFIX}/lib64/pkgconfig
+ENV CPATH=${STATIC_PREFIX}/include
+ENV LIBRARY_PATH=${STATIC_PREFIX}/lib:${STATIC_PREFIX}/lib64
+
+RUN set -e; \
+    for sym in OpenSSL_version_num SSL_CTX_new EVP_sha256; do \
+      match=$(nm ${STATIC_PREFIX}/lib/libcrypto.a ${STATIC_PREFIX}/lib/libssl.a 2>/dev/null | grep " T ${sym}\$" || true); \
+      if [ -z "$match" ]; then \
+        echo "FATAL: symbol ${sym} is missing or not globally visible in the static OpenSSL build" >&2; \
+        exit 1; \
+      fi; \
+      echo "OK: ${sym} -> ${match}"; \
+    done
+
+RUN curl -fsSL https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz \
+      -o zstd.tar.gz \
+    && tar xf zstd.tar.gz \
+    && cd zstd-${ZSTD_VERSION} \
+    && make -j"$(nproc)" BUILD_SHARED=0 BUILD_STATIC=1 \
+    && make install PREFIX=${STATIC_PREFIX} BUILD_SHARED=0 BUILD_STATIC=1 \
+    && cd .. && rm -rf zstd-${ZSTD_VERSION} zstd.tar.gz
+
+RUN curl -fsSL https://causal.agency/libretls/libretls-${LIBRETLS_VERSION}.tar.gz \
+      -o libretls.tar.gz \
+    && tar xf libretls.tar.gz \
+    && cd libretls-${LIBRETLS_VERSION} \
+    && PKG_CONFIG="pkg-config --static" ./configure \
+         --prefix=${STATIC_PREFIX} \
+         --disable-shared \
+         --enable-static \
+    && make -j"$(nproc)" \
+    && make install \
+    && cd .. && rm -rf libretls-${LIBRETLS_VERSION} libretls.tar.gz
+
+RUN echo "--- installed static libs ---" \
+    && ls -la ${STATIC_PREFIX}/lib \
+    && echo "--- glibc in this image ---" \
+    && ldd --version | head -n1
+
+WORKDIR /work
