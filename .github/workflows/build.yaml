@@ -40,7 +40,7 @@ jobs:
             BASE_IMAGE=${{ matrix.base_image }}
             OPENSSL_TARGET=${{ matrix.openssl_target }}
           push: true
-          tags: ghcr.io/${{ github.repository }}/old-glibc-build:manylinux2014-${{ matrix.arch }}
+          tags: ghcr.io/${{ github.repository }}:${{ matrix.arch }}
 
   manifest:
     needs: build
@@ -55,6 +55,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           docker buildx imagetools create \
-            -t ghcr.io/${{ github.repository }}/old-glibc-build:manylinux2014 \
-            ghcr.io/${{ github.repository }}/old-glibc-build:manylinux2014-x86_64 \
-            ghcr.io/${{ github.repository }}/old-glibc-build:manylinux2014-aarch64
+            -t ghcr.io/${{ github.repository }} \
+            ghcr.io/${{ github.repository }}:x86_64 \
+            ghcr.io/${{ github.repository }}:aarch64
