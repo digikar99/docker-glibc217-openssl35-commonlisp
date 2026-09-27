@@ -9,17 +9,36 @@ on:
   push:
 
 jobs:
+  vars:
+    runs-on: ubuntu-latest
+    outputs:
+      manylinux_versions: ${{ steps.set.outputs.versions }}
+    steps:
+      - id: set
+        run: |
+          {
+            echo 'versions<<EOF'
+            cat <<'JSON'
+          [
+            {"base":"manylinux2014","glibc":"2_17","toolset_path":"/opt/rh/devtoolset-10/root"},
+            {"base":"manylinux_2_28","glibc":"2_28","toolset_path":"/opt/rh/gcc-toolset-13/root"}
+          ]
+          JSON
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
   build:
+    needs: vars
     strategy:
       matrix:
+        manylinux: ${{ fromJSON(needs.vars.outputs.manylinux_versions) }}
+        arch: [x86_64, aarch64]
         include:
           - arch: x86_64
             runner: ubuntu-latest
-            base_image: quay.io/pypa/manylinux2014_x86_64
             openssl_target: linux-x86_64
           - arch: aarch64
             runner: ubuntu-24.04-arm
-            base_image: quay.io/pypa/manylinux2014_aarch64
             openssl_target: linux-aarch64
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -35,15 +54,19 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.manylinux2014
+          file: Dockerfile.manylinux
           build-args: |
-            BASE_IMAGE=${{ matrix.base_image }}
+            BASE_IMAGE=quay.io/pypa/${{ matrix.manylinux.base }}_${{ matrix.arch }}
             OPENSSL_TARGET=${{ matrix.openssl_target }}
+            TOOLSET_PATH=${{ matrix.manylinux.toolset_path }}
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ matrix.arch }}
+          tags: ghcr.io/${{ github.repository }}:glibc_${{ matrix.manylinux.glibc }}-${{ matrix.arch }}
 
   manifest:
-    needs: build
+    needs: [vars, build]
+    strategy:
+      matrix:
+        manylinux: ${{ fromJSON(needs.vars.outputs.manylinux_versions) }}
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -55,6 +78,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           docker buildx imagetools create \
-            -t ghcr.io/${{ github.repository }} \
-            ghcr.io/${{ github.repository }}:x86_64 \
-            ghcr.io/${{ github.repository }}:aarch64
+            -t ghcr.io/${{ github.repository }}:glibc_${{ matrix.manylinux.glibc }} \
+            ghcr.io/${{ github.repository }}:glibc_${{ matrix.manylinux.glibc }}-x86_64 \
+            ghcr.io/${{ github.repository }}:glibc_${{ matrix.manylinux.glibc }}-aarch64

@@ -15,8 +15,9 @@ case $(uname -m) in
     *) ARCH=$(uname -m) ;;
 esac
 
-export PATH="/opt/rh/devtoolset-10/root/usr/bin:${PATH}"
-export LD_LIBRARY_PATH="/opt/rh/devtoolset-10/root/usr/lib64:/opt/rh/devtoolset-10/root/usr/lib:${LD_LIBRARY_PATH:-}"
+TOOLSET_PATH="${TOOLSET_PATH:-/opt/rh/devtoolset-10/root}"
+export PATH="${TOOLSET_PATH}/usr/bin:${PATH}"
+export LD_LIBRARY_PATH="${TOOLSET_PATH}/usr/lib64:${TOOLSET_PATH}/usr/lib:${LD_LIBRARY_PATH:-}"
 
 if [ -f /etc/yum.repos.d/CentOS-Base.repo ]; then
   sed -i \

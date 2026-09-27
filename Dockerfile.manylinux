@@ -6,20 +6,22 @@ ARG OPENSSL_TARGET=linux-x86_64
 ARG OPENSSL_VERSION=3.5.8
 ARG LIBRETLS_VERSION=3.8.1
 ARG ZSTD_VERSION=1.5.7
+ARG TOOLSET_PATH=/opt/rh/devtoolset-10/root
 
 ENV OPENSSL_TARGET=${OPENSSL_TARGET}
 ENV OPENSSL_VERSION=${OPENSSL_VERSION}
 ENV LIBRETLS_VERSION=${LIBRETLS_VERSION}
 ENV ZSTD_VERSION=${ZSTD_VERSION}
+ENV TOOLSET_PATH=${TOOLSET_PATH}
 ENV STATIC_PREFIX=/opt/static
 
 COPY build.sh /usr/local/bin/build.sh
 RUN chmod +x /usr/local/bin/build.sh && /usr/local/bin/build.sh
 
-ENV PATH="/opt/rh/devtoolset-10/root/usr/bin:${PATH}"
+ENV PATH="${TOOLSET_PATH}/usr/bin:${PATH}"
 ENV PKG_CONFIG_PATH="${STATIC_PREFIX}/lib/pkgconfig:${STATIC_PREFIX}/lib64/pkgconfig"
 ENV CPATH="${STATIC_PREFIX}/include"
 ENV LIBRARY_PATH="${STATIC_PREFIX}/lib:${STATIC_PREFIX}/lib64"
-ENV LD_LIBRARY_PATH="${LIBRARY_PATH}:/opt/rh/devtoolset-10/root/usr/lib64:/opt/rh/devtoolset-10/root/usr/lib:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="${LIBRARY_PATH}:${TOOLSET_PATH}/usr/lib64:${TOOLSET_PATH}/usr/lib:${LD_LIBRARY_PATH}"
 
 WORKDIR /work
