@@ -8,6 +8,7 @@ ZSTD_VERSION="${ZSTD_VERSION:-1.5.7}"
 ECL_VERSION="${ECL_VERSION:-26.5.5}"
 SBCL_VERSION="${SBCL_VERSION:-2.6.0}"
 STATIC_PREFIX="${STATIC_PREFIX:-/opt/static}"
+GH_VERSION="${GH_VERSION:-2.101.0}"
 
 case $(uname -m) in
     x86_64) ARCH="x86-64" ;;
@@ -116,6 +117,20 @@ cd "sbcl-${SBCL_VERSION}"
 bash make.sh --xc-host="${SBCL_HOST_DIR}/run-sbcl.sh" --fancy
 bash install.sh
 cd /usr/src && rm -rf sbcl*
+
+
+
+echo "=== 6. Installing Github CLI ${GH_VERSION} ==="
+
+case $(uname -m) in
+    x86_64) GH_RPM="gh_${GH_VERSION}_linux_amd64.rpm" ;;
+    arm64|aarch64) GH_RPM="gh_${GH_VERSION}_linux_arm64.rpm" ;;
+esac
+
+curl -fsSL https://github.com/cli/cli/releases/download/v2.101.0/${GH_RPM} -o gh.rpm
+yum -y install gh.rpm
+
+
 
 echo "--- installed static libs ---"
 ls -la "${STATIC_PREFIX}/lib"
