@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+## 1. Install OpenSSL
+## 2. Install zstd
+## 3. Install LibreTLS
+## 4. Install ECL
+## 5. Install SBCL
+## 6. Install Github Actions
+
 OPENSSL_TARGET="${OPENSSL_TARGET:-linux-x86_64}"
 OPENSSL_VERSION="${OPENSSL_VERSION:-3.5.8}"
 LIBRETLS_VERSION="${LIBRETLS_VERSION:-3.8.1}"
@@ -46,7 +53,9 @@ yum clean all
 mkdir -p /usr/src "${STATIC_PREFIX}"
 cd /usr/src
 
-echo "=== Building OpenSSL ${OPENSSL_VERSION} (target: ${OPENSSL_TARGET}) ==="
+
+
+echo "=== 1. Building OpenSSL ${OPENSSL_VERSION} (target: ${OPENSSL_TARGET}) ==="
 curl -fsSL "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz" -o openssl.tar.gz
 tar xf openssl.tar.gz
 cd "openssl-${OPENSSL_VERSION}"
@@ -62,6 +71,7 @@ export PKG_CONFIG_PATH="${STATIC_PREFIX}/lib/pkgconfig:${STATIC_PREFIX}/lib64/pk
 export CPATH="${STATIC_PREFIX}/include"
 export LIBRARY_PATH="${STATIC_PREFIX}/lib:${STATIC_PREFIX}/lib64"
 
+
 echo "=== Verifying OpenSSL symbol visibility ==="
 for sym in OpenSSL_version_num SSL_CTX_new EVP_sha256; do
   match=$(nm "${STATIC_PREFIX}/lib/libcrypto.a" "${STATIC_PREFIX}/lib/libssl.a" 2>/dev/null | grep " T ${sym}\$" || true)
@@ -72,7 +82,9 @@ for sym in OpenSSL_version_num SSL_CTX_new EVP_sha256; do
   echo "OK: ${sym} -> ${match}"
 done
 
-echo "=== Building zstd ${ZSTD_VERSION} ==="
+
+
+echo "=== 2. Building zstd ${ZSTD_VERSION} ==="
 cd /usr/src
 curl -fsSL "https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz" -o zstd.tar.gz
 tar xf zstd.tar.gz
@@ -81,7 +93,9 @@ make -j"$(nproc)" BUILD_SHARED=0 BUILD_STATIC=1
 make install PREFIX="${STATIC_PREFIX}" BUILD_SHARED=0 BUILD_STATIC=1
 cd /usr/src && rm -rf "zstd-${ZSTD_VERSION}" zstd.tar.gz
 
-echo "=== Building LibreTLS ${LIBRETLS_VERSION} ==="
+
+
+echo "=== 3. Building LibreTLS ${LIBRETLS_VERSION} ==="
 curl -fsSL "https://causal.agency/libretls/libretls-${LIBRETLS_VERSION}.tar.gz" -o libretls.tar.gz
 tar xf libretls.tar.gz
 cd "libretls-${LIBRETLS_VERSION}"
@@ -93,7 +107,9 @@ make -j"$(nproc)"
 make install
 cd /usr/src && rm -rf "libretls-${LIBRETLS_VERSION}" libretls.tar.gz
 
-echo "=== Building ECL ${ECL_VERSION} ==="
+
+
+echo "=== 4. Building ECL ${ECL_VERSION} ==="
 curl -fsSL "https://common-lisp.net/project/ecl/static/files/release/ecl-$ECL_VERSION.tgz" -o ecl.tar.gz
 tar xf ecl.tar.gz
 cd "ecl-${ECL_VERSION}"
@@ -107,7 +123,9 @@ cd /usr/src && rm -rf "ecl-${ECL_VERSION}" ecl.tar.gz
 
 export LD_LIBRARY_PATH="${STATIC_PREFIX}/lib:${STATIC_PREFIX}/lib64"
 
-echo "=== Building SBCL ${SBCL_VERSION} ==="
+
+
+echo "=== 5. Building SBCL ${SBCL_VERSION} ==="
 SBCL_HOST_DIR="sbcl-1.4.2-${ARCH}-linux"
 curl -fsSL https://prdownloads.sourceforge.net/sbcl/${SBCL_HOST_DIR}-binary.tar.bz2 -o sbcl-host.tar.gz
 SBCL_HOST_DIR="${PWD}/${SBCL_HOST_DIR}"
